@@ -1,0 +1,350 @@
+{{-- resources/views/admin/booking/categories.blade.php --}}
+
+@extends('admin.layouts.app')
+
+@push('styles_top')
+    <link rel="stylesheet" href="/assets/admin/vendor/bootstrap-colorpicker/bootstrap-colorpicker.min.css">
+    <style>
+        /* Tree view styling — parent bold row, children indented niche */
+        .booking-cat-table .parent-row td {
+            background: #f8f9fb;
+            font-weight: 600;
+        }
+        .booking-cat-table .parent-row td.cat-title {
+            font-size: 15px;
+        }
+        .booking-cat-table .child-row td.cat-title {
+            padding-left: 38px;
+            color: #555;
+        }
+        .booking-cat-table .child-row td.cat-title:before {
+            content: "— ";
+            color: #aaa;
+        }
+        .booking-cat-table .child-row {
+            border-left: 3px solid #eee;
+        }
+        .booking-cat-table .no-children-note td.cat-title {
+            padding-left: 38px;
+            color: #bbb;
+            font-style: italic;
+        }
+    </style>
+@endpush
+
+@section('content')
+    <section class="section">
+        <div class="section-header">
+            <h1>{{ trans('admin/main.booking_categories') }}</h1>
+            <div class="section-header-breadcrumb">
+                <div class="breadcrumb-item active">
+                    <a href="{{ getAdminPanelUrl() }}">{{ trans('admin/main.dashboard') }}</a>
+                </div>
+                <div class="breadcrumb-item">{{ trans('admin/main.booking_categories') }}</div>
+            </div>
+        </div>
+
+        <div class="section-body">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+
+                            <ul class="nav nav-pills" id="myTab3" role="tablist">
+                                @php
+                                    $bookingCategoriesCreateActive = ((!empty($errors) and $errors->has('title')) or !empty($editCategory) or ((empty($bookingCategories) || !$bookingCategories->count()) and auth()->user()->can('admin_booking_categories_create')));
+                                @endphp
+
+                                @can('admin_booking_categories')
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ $bookingCategoriesCreateActive ? '' : 'active' }}"
+                                           id="categories-tab" data-toggle="tab" href="#categories"
+                                           role="tab" aria-controls="categories" aria-selected="true">
+                                            {{ trans('admin/main.categories') }}
+                                        </a>
+                                    </li>
+                                @endcan
+
+                                @can('admin_booking_categories_create')
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ $bookingCategoriesCreateActive ? 'active' : '' }}"
+                                           id="newCategory-tab" data-toggle="tab" href="#newCategory"
+                                           role="tab" aria-controls="newCategory" aria-selected="true">
+                                            {{ trans('admin/main.create_booking_category') }}
+                                        </a>
+                                    </li>
+                                @endcan
+                            </ul>
+
+                            <div class="tab-content" id="myTabContent2">
+
+                                @can('admin_booking_categories')
+                                    <div class="tab-pane mt-3 fade {{ $bookingCategoriesCreateActive ? '' : 'active show' }}"
+                                         id="categories" role="tabpanel" aria-labelledby="categories-tab">
+
+                                        @if(!empty($bookingCategories) && $bookingCategories->count())
+                                            <div class="table-responsive">
+                                                {{--
+                                                    TREE VIEW:
+                                                    Har parent category ek "parent-row" (bold) ke sath aati hai,
+                                                    uske foran baad uske sare children "child-row" (indented) mein
+                                                    list hote hain. Phir agla parent, uske children... isi tarah.
+                                                --}}
+                                                <table class="table booking-cat-table font-14">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="text-left" style="width: 50px;">{{ trans('admin/main.icon') }}</th>
+                                                            <th class="text-left cat-title">{{ trans('admin/main.title') }}</th>
+                                                            <th class="text-center" style="width: 140px;">{{ trans('admin/main.bookings') ?? 'Bookings' }}</th>
+                                                            <th class="text-center" style="width: 110px;">{{ trans('admin/main.status') ?? 'Status' }}</th>
+                                                            <th class="text-center" style="width: 80px;">{{ trans('admin/main.action') }}</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach($bookingCategories ?? [] as $parent)
+                                                            {{-- ── Parent row (bold / booking type level) ── --}}
+                                                            <tr class="parent-row">
+                                                                <td style="width: 50px;">
+                                                                    @if($parent->icon)
+                                                                        <i class="{{ $parent->icon }}" style="font-size: 20px;"></i>
+                                                                    @else
+                                                                        <span class="badge badge-light">-</span>
+                                                                    @endif
+                                                                </td>
+                                                                <td class="text-left cat-title">{{ $parent->title }}</td>
+                                                                <td class="text-center">{{ $parent->getSelfAndChildBookingsCount() }}</td>
+                                                                <td class="text-center">
+                                                                    @if($parent->status)
+                                                                        <span class="badge badge-success">{{ trans('admin/main.active') }}</span>
+                                                                    @else
+                                                                        <span class="badge badge-secondary">{{ trans('admin/main.inactive') ?? 'Inactive' }}</span>
+                                                                    @endif
+                                                                </td>
+                                                                <td class="text-center" width="80px">
+                                                                    <div class="btn-group dropdown table-actions position-relative">
+                                                                        <button type="button" class="btn-transparent dropdown-toggle" data-toggle="dropdown">
+                                                                            <x-iconsax-lin-more class="icons text-gray-500" width="20px" height="20px"/>
+                                                                        </button>
+
+                                                                        <div class="dropdown-menu dropdown-menu-right">
+                                                                            @can('admin_booking_categories_edit')
+                                                                                <a href="{{ getAdminPanelUrl() }}/booking/categories/{{ $parent->id }}/edit"
+                                                                                   class="dropdown-item d-flex align-items-center mb-3 py-3 px-0 gap-4">
+                                                                                    <x-iconsax-lin-edit-2 class="icons text-gray-500 mr-2" width="18px" height="18px"/>
+                                                                                    <span class="text-gray-500 font-14">{{ trans('admin/main.edit') }}</span>
+                                                                                </a>
+                                                                            @endcan
+
+                                                                            @can('admin_booking_categories_delete')
+                                                                                @include('admin.includes.delete_button', [
+                                                                                    'url'      => getAdminPanelUrl() . '/booking/categories/' . $parent->id . '/delete',
+                                                                                    'btnClass' => 'dropdown-item text-danger mb-0 py-3 px-0 font-14',
+                                                                                    'btnText'  => trans('admin/main.delete'),
+                                                                                    'btnIcon'  => 'trash',
+                                                                                    'iconType' => 'lin',
+                                                                                    'iconClass'=> 'text-danger mr-2'
+                                                                                ])
+                                                                            @endcan
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+
+                                                            {{-- ── Children rows (subcategories / templates under this parent) ── --}}
+                                                            @forelse($parent->children as $child)
+                                                                <tr class="child-row">
+                                                                    <td style="width: 50px;">
+                                                                        @if($child->icon)
+                                                                            <i class="{{ $child->icon }}" style="font-size: 16px;"></i>
+                                                                        @else
+                                                                            <span class="badge badge-light">-</span>
+                                                                        @endif
+                                                                    </td>
+                                                                    <td class="text-left cat-title">{{ $child->title }}</td>
+                                                                    <td class="text-center">{{ $child->getSelfAndChildBookingsCount() }}</td>
+                                                                    <td class="text-center">
+                                                                        @if($child->status)
+                                                                            <span class="badge badge-success">{{ trans('admin/main.active') }}</span>
+                                                                        @else
+                                                                            <span class="badge badge-secondary">{{ trans('admin/main.inactive') ?? 'Inactive' }}</span>
+                                                                        @endif
+                                                                    </td>
+                                                                    <td class="text-center" width="80px">
+                                                                        <div class="btn-group dropdown table-actions position-relative">
+                                                                            <button type="button" class="btn-transparent dropdown-toggle" data-toggle="dropdown">
+                                                                                <x-iconsax-lin-more class="icons text-gray-500" width="20px" height="20px"/>
+                                                                            </button>
+
+                                                                            <div class="dropdown-menu dropdown-menu-right">
+                                                                                @can('admin_booking_categories_edit')
+                                                                                    <a href="{{ getAdminPanelUrl() }}/booking/categories/{{ $child->id }}/edit"
+                                                                                       class="dropdown-item d-flex align-items-center mb-3 py-3 px-0 gap-4">
+                                                                                        <x-iconsax-lin-edit-2 class="icons text-gray-500 mr-2" width="18px" height="18px"/>
+                                                                                        <span class="text-gray-500 font-14">{{ trans('admin/main.edit') }}</span>
+                                                                                    </a>
+                                                                                @endcan
+
+                                                                                @can('admin_booking_categories_delete')
+                                                                                    @include('admin.includes.delete_button', [
+                                                                                        'url'      => getAdminPanelUrl() . '/booking/categories/' . $child->id . '/delete',
+                                                                                        'btnClass' => 'dropdown-item text-danger mb-0 py-3 px-0 font-14',
+                                                                                        'btnText'  => trans('admin/main.delete'),
+                                                                                        'btnIcon'  => 'trash',
+                                                                                        'iconType' => 'lin',
+                                                                                        'iconClass'=> 'text-danger mr-2'
+                                                                                    ])
+                                                                                @endcan
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            @empty
+                                                                <tr class="child-row no-children-note">
+                                                                    <td></td>
+                                                                    <td class="cat-title">{{ trans('admin/main.no_result') }} ({{ trans('admin/main.subcategories') ?? 'Subcategories' }})</td>
+                                                                    <td></td>
+                                                                    <td></td>
+                                                                    <td></td>
+                                                                </tr>
+                                                            @endforelse
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        @else
+                                            <div class="text-center text-gray-500 mt-30">
+                                                {{ trans('admin/main.no_result') }}
+                                            </div>
+                                        @endif
+
+                                    </div>
+                                @endcan
+
+                                @can('admin_booking_categories_create')
+                                    <div class="tab-pane mt-3 fade {{ $bookingCategoriesCreateActive ? 'active show' : '' }}"
+                                         id="newCategory" role="tabpanel" aria-labelledby="newCategory-tab">
+                                        <div class="row">
+                                            <div class="col-12 col-md-6">
+                                                <form action="{{ getAdminPanelUrl() }}/booking/categories/{{ !empty($editCategory) ? $editCategory->id . '/update' : 'store' }}"
+                                                      method="post">
+                                                    {{ csrf_field() }}
+
+                                                    <div class="form-group">
+                                                        <label>{{ trans('admin/main.title') }}</label>
+                                                        <input type="text" name="title"
+                                                               class="form-control @error('title') is-invalid @enderror"
+                                                               value="{{ !empty($editCategory) ? $editCategory->title : old('title') }}"
+                                                               placeholder="{{ trans('admin/main.choose_title') }}"/>
+                                                        @error('title')
+                                                            <div class="invalid-feedback">{{ $message }}</div>
+                                                        @enderror
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label>{{ trans('update.subtitle') }}</label>
+                                                        <input type="text" name="subtitle"
+                                                               class="form-control @error('subtitle') is-invalid @enderror"
+                                                               value="{{ !empty($editCategory) ? $editCategory->subtitle : old('subtitle') }}"
+                                                               placeholder="{{ trans('admin/main.choose_subtitle') }}"/>
+                                                        @error('subtitle')
+                                                            <div class="invalid-feedback">{{ $message }}</div>
+                                                        @enderror
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label>{{ trans('admin/main.description') }}</label>
+                                                        <textarea name="description" rows="4"
+                                                                  class="form-control @error('description') is-invalid @enderror"
+                                                                  placeholder="{{ trans('admin/main.description') }}">{{ !empty($editCategory) ? $editCategory->description : old('description') }}</textarea>
+                                                        @error('description')
+                                                            <div class="invalid-feedback">{{ $message }}</div>
+                                                        @enderror
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label class="input-label">{{ trans('admin/main.icon') }}</label>
+                                                        <div class="input-group">
+                                                            <div class="input-group-prepend">
+                                                                <button type="button" class="input-group-text admin-file-manager"
+                                                                        data-input="icon" data-preview="holder">
+                                                                    <i class="fa fa-upload"></i>
+                                                                </button>
+                                                            </div>
+                                                            <input type="text" name="icon" id="icon"
+                                                                   value="{{ !empty($editCategory) ? $editCategory->icon : old('icon') }}"
+                                                                   class="form-control @error('icon') is-invalid @enderror"/>
+                                                            <div class="invalid-feedback">@error('icon') {{ $message }} @enderror</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label>{{ trans('admin/main.order') }}</label>
+                                                        <input type="number" name="order" min="0"
+                                                               class="form-control @error('order') is-invalid @enderror"
+                                                               value="{{ !empty($editCategory) ? $editCategory->order : old('order', $nextOrder ?? 0) }}"/>
+                                                        <div class="text-gray-500 text-small mt-1">Auto-generated as {{ $nextOrder ?? 0 }} if left empty</div>
+                                                        @error('order')
+                                                            <div class="invalid-feedback">{{ $message }}</div>
+                                                        @enderror
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label class="input-label">{{ trans('admin/main.parent_category') }}</label>
+                                                        <select name="parent_id" class="form-control">
+                                                            <option value="">{{ trans('admin/main.no_parent') }}</option>
+                                                            @foreach($parentCategories ?? [] as $cat)
+                                                                @if(empty($editCategory) || $editCategory->id !== $cat->id)
+                                                                    <option value="{{ $cat->id }}"
+                                                                        {{ (!empty($editCategory) && $editCategory->parent_id == $cat->id) ? 'selected' : '' }}>
+                                                                        {{ $cat->title }}
+                                                                    </option>
+                                                                @endif
+                                                            @endforeach
+                                                        </select>
+                                                        <div class="text-gray-500 text-small mt-1">
+                                                            {{ trans('admin/main.no_parent') }} = ye ek Booking Type (parent) hai.
+                                                            Parent select karne ka matlab ye is parent ki subcategory/template ban jaayegi.
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <div class="custom-control custom-switch">
+                                                            <input type="checkbox" name="status"
+                                                                   class="custom-control-input" id="status"
+                                                                   {{ (!empty($editCategory) && $editCategory->status) || empty($editCategory) ? 'checked' : '' }}>
+                                                            <label class="custom-control-label" for="status">
+                                                                {{ trans('admin/main.active') }}
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="text-right col-12 mt-3">
+                                                        @if(!empty($editCategory))
+                                                            <a href="{{ getAdminPanelUrl() }}/booking/categories"
+                                                               class="btn btn-secondary mr-2">
+                                                                {{ trans('admin/main.cancel') }}
+                                                            </a>
+                                                        @endif
+                                                        <button type="submit" class="btn btn-primary">
+                                                            {{ trans('admin/main.save_change') }}
+                                                        </button>
+                                                    </div>
+
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endcan
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+@endsection
+
+@push('scripts_bottom')
+    <script src="/assets/admin/vendor/bootstrap-colorpicker/bootstrap-colorpicker.min.js"></script>
+@endpush

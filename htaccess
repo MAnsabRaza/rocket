@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+    RewriteBase /
+
+    # --- Exclude subdirectories served independently ---
+    RewriteCond %{REQUEST_URI} !^/(public|_ai_core|_Adds|_AddManagement|_Affility|_App|_ERP|_BizStarter|_Freelancer|_ImgTls|_MailManage|_ProSocial|_ProSocialTest|_MultiPost|_Tools|_TeleGroupBot|_Temails|_TraffAnalysis|_Sofos|_Recruit|_ProChat|_Resume|_vCard|wordpresstool)(/|$)
+    # ----------------------------------------------------
+
+    # Redirect everything else to Laravel’s public folder
+    RewriteCond %{REQUEST_URI} !^/index.php
+    RewriteRule ^(.*)$ public/$1 [L,QSA]
+</IfModule>
