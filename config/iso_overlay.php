@@ -63,37 +63,21 @@ return [
         'workflow' => [
             'label' => 'Workflow',
             'ref'   => ['source' => 'library', 'table' => 'iso_content_workflows'],
-            'data'  => [
-                'description' => 'nullable|string|max:2000',
-                'states'      => 'required|array|min:2',
-                'transitions' => 'required|array|min:1',
-                'roles'       => 'nullable|array',
-                'settings'    => 'nullable|array',
-            ],
+            'data'  => [],
         ],
 
         // M9 Updated: Checklist now uses the default content library with structured data rules
         'checklist' => [
             'label' => 'Audit Checklist',
             'ref'   => ['source' => 'library', 'table' => 'iso_content_checklists'],
-            'data'  => [
-                'description' => 'nullable|string|max:2000',
-                'schema'      => 'required|array|min:1',
-                'scoring'     => 'nullable|array',
-                'version'     => 'required|integer|min:1',
-            ],
+            'data'  => [],
         ],
 
         // M9 Updated: Form now uses the default content library with structured data rules
         'form' => [
             'label' => 'Form Template',
             'ref'   => ['source' => 'library', 'table' => 'iso_content_forms'],
-            'data'  => [
-                'description' => 'nullable|string|max:2000',
-                'schema'      => 'required|array|min:1',
-                'approval'    => 'nullable|array',
-                'version'     => 'required|integer|min:1',
-            ],
+            'data'  => [],
         ],
 
         // KPIs are structured, versioned overlay data (decision 58).
