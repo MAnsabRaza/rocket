@@ -9,12 +9,12 @@
         if (str_contains($field, '*') || $field === 'levels' || preg_match('/(^|\|)array(\||$)/', $rule)) {
             continue;
         }
-        $options = null;
+        $fieldOptions = null;
         if (preg_match('/in:([^|]+)/', $rule, $m)) {
-            $options = explode(',', $m[1]);
+            $fieldOptions = explode(',', $m[1]);
         }
         $fields[$field] = [
-            'options' => $options,
+            'options' => $fieldOptions,
             'numeric' => (bool)preg_match('/numeric|integer/', $rule),
             'required' => str_contains($rule, 'required'),
             'long' => (bool)preg_match('/max:(\d+)/', $rule, $mm) && (int)$mm[1] > 255,

@@ -352,26 +352,38 @@ class IsoOverlayController extends Controller
         return $values ?: null;
     }
 
- private function optionsFor(string $type): array
+private function optionsFor(string $type): array
 {
     $def = config("iso_overlay.item_types.{$type}");
     $source = $def['ref']['source'] ?? null;
 
+    // M8: External FlinkISO database
     if ($source === 'flinkiso') {
         return $this->lookup->options($def['ref']['table']);
     }
 
+    // M9: Local Rocket LMS content library
     if ($source === 'library') {
-        // M9: local Rocket LMS library table se options
         $table = $def['ref']['table'];
-        $rows  = DB::table($table)->where('is_active', 1)->orderBy('technical_key')->get();
-        $out   = [];
-        foreach ($rows as $row) {
-            $name = json_decode($row->name ?? 'null', true);
-            $label = is_array($name) ? ($name['en'] ?? $row->technical_key) : $row->technical_key;
-            $out[$row->id] = $row->technical_key . ' — ' . $label;
+        
+        try {
+            $rows = \Illuminate\Support\Facades\DB::table($table)
+                ->where('is_active', 1)
+                ->orderBy('technical_key')
+                ->get(['id', 'technical_key', 'name']);
+
+            $out = [];
+            foreach ($rows as $row) {
+                $name = json_decode($row->name ?? 'null', true);
+                $label = is_array($name) 
+                    ? ($name['en'] ?? $row->technical_key) 
+                    : $row->technical_key;
+                $out[$row->id] = $row->technical_key . ' — ' . $label;
+            }
+            return $out;
+        } catch (\Throwable $e) {
+            return [];
         }
-        return $out;
     }
 
     return [];
