@@ -1,0 +1,47 @@
+dictionary_version: 1.0.0
+policy: "Identical business meaning = ONE shared field. Never duplicated per standard."
+fields:
+  - technical_key: common_due_date
+    label_key: flinkiso.fields.due_date
+    help_text_key: flinkiso.help.due_date
+    data_type: date
+    default: null
+    required_rule: conditional
+    editable: true
+    visibility_rule: null
+    lookup_source: null
+    validation_ref: [VR-021]
+    reporting_meta: { group_by: month, aggregation: count }
+    import_export_key: due_date
+    reused_by: [ISO 9001:2015, ISO 14001:2015, ISO 45001:2018, ISO 27001:2022]
+    version: 1.0.0
+
+  - technical_key: common_responsible_person
+    label_key: flinkiso.fields.responsible_person
+    help_text_key: flinkiso.help.responsible_person
+    data_type: relation
+    default: null
+    required_rule: always
+    editable: true
+    visibility_rule: null
+    lookup_source: users
+    validation_ref: [VR-001]
+    reporting_meta: { group_by: user_id, aggregation: count }
+    import_export_key: responsible_user_id
+    reused_by: [ALL]
+    version: 1.0.0
+
+  - technical_key: common_status
+    label_key: flinkiso.fields.status
+    help_text_key: flinkiso.help.status
+    data_type: enum
+    default: draft
+    required_rule: always
+    editable: true
+    visibility_rule: null
+    lookup_source: LKP_STATUS
+    validation_ref: [VR-001]
+    reporting_meta: { group_by: status, aggregation: count }
+    import_export_key: status
+    reused_by: [ALL]
+    version: 1.0.0

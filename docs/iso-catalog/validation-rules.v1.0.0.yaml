@@ -1,0 +1,22 @@
+validation_rules_version: 1.0.0
+rules:
+  - rule_id: VR-001
+    type: required
+    applies_to: [common_status, common_responsible_person]
+    condition_expression: null
+    error_message_key: flinkiso.validation.required
+    varies_by_standard_version: false
+
+  - rule_id: VR-021
+    type: date_order
+    applies_to: [common_due_date, common_approval_date]
+    condition_expression: "common_due_date >= common_approval_date"
+    error_message_key: flinkiso.validation.date_order
+    varies_by_standard_version: false
+
+  - rule_id: VR-014
+    type: max_length
+    applies_to: [qms_doc_title]
+    condition_expression: "strlen(value) <= 255"
+    error_message_key: flinkiso.validation.max_length
+    varies_by_standard_version: false

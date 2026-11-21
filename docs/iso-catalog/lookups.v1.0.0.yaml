@@ -1,0 +1,41 @@
+lookups_version: 1.0.0
+sets:
+  - key: LKP_STATUS
+    name: General Status
+    shared: true
+    deactivation_policy: "Set active=false. Do not delete. Hide from new forms."
+    values:
+      - value_key: draft
+        sort_order: 1
+        active: true
+        label_keys: { en: "Draft", ar: "مسودة" }
+      - value_key: active
+        sort_order: 2
+        active: true
+        label_keys: { en: "Active", ar: "نشط" }
+      - value_key: archived
+        sort_order: 3
+        active: true
+        label_keys: { en: "Archived", ar: "مؤرشف" }
+
+  - key: LKP_FINDING_TYPE
+    name: Audit Finding Type
+    shared: true
+    deactivation_policy: "Soft delete only."
+    values:
+      - value_key: conformity
+        sort_order: 1
+        active: true
+        label_keys: { en: "Conformity", ar: "مطابقة" }
+      - value_key: minor_nc
+        sort_order: 2
+        active: true
+        label_keys: { en: "Minor Nonconformity", ar: "عدم مطابقة بسيط" }
+      - value_key: major_nc
+        sort_order: 3
+        active: true
+        label_keys: { en: "Major Nonconformity", ar: "عدم مطابقة جسيم" }
+      - value_key: ofi
+        sort_order: 4
+        active: true
+        label_keys: { en: "Opportunity for Improvement", ar: "فرصة للتحسين" }

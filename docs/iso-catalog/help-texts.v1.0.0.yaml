@@ -1,0 +1,9 @@
+help_texts_version: 1.0.0
+texts:
+  - field_ref: common_due_date
+    short_help_key: flinkiso.help.due_date.short
+    description_key: flinkiso.help.due_date.desc
+    example_value: "2026-12-31"
+    tooltip_key: flinkiso.tooltip.due_date
+    internal_guidance_link: null
+    locale_coverage: [en, ar]
