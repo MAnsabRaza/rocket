@@ -62,7 +62,7 @@
     <label>{{ trans('iso_overlay.reference') }} ({{ $def['ref']['table'] }})</label>
     <select name="ref_id" class="form-control" required>
         <option value="">-</option>
-        @foreach($options as $id => $label)
+        @foreach(($options ?? []) as $id => $label)
         <option value="{{ $id }}" {{ old('ref_id', $item->ref_id ?? '') == $id ? 'selected' : '' }}>{{ $label }}</option>
         @endforeach
     </select>
@@ -73,7 +73,7 @@
     <label>{{ trans('iso_overlay.reference') }} ({{ $def['ref']['table'] }})</label>
     <select name="ref_id" class="form-control" required>
         <option value="">-</option>
-        @foreach($options as $id => $label)
+        @foreach(($options ?? []) as $id => $label)
         <option value="{{ $id }}" {{ old('ref_id', $item->ref_id ?? '') == $id ? 'selected' : '' }}>{{ $label }}</option>
         @endforeach
     </select>
