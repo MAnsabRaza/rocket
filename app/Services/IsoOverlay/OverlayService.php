@@ -585,42 +585,49 @@ class OverlayService
     }
 
     private function normaliseItem(array $attrs): array
-    {
-        $type = (string)($attrs['type'] ?? '');
-        $def = config("iso_overlay.item_types.{$type}");
-        $source = $def['ref']['source'] ?? null;
-        $isLibrary = $source === 'library';
-        $refId = isset($attrs['ref_id']) && $attrs['ref_id'] !== '' ? trim((string)$attrs['ref_id']) : null;
+{
+    $type = (string)($attrs['type'] ?? '');
+    $def = config("iso_overlay.item_types.{$type}");
+    $source = $def['ref']['source'] ?? null;
+    $refId = isset($attrs['ref_id']) && $attrs['ref_id'] !== '' ? trim((string)$attrs['ref_id']) : null;
 
-        return [
-            'type' => $type,
-            'key' => trim((string)($attrs['key'] ?? '')),
-            'parent_key' => isset($attrs['parent_key']) && $attrs['parent_key'] !== '' ? trim((string)$attrs['parent_key']) : null,
-            'ref_source' => $source === 'flinkiso'
-                ? 'flinkiso'
-                : ($isLibrary ? 'library' : ($refId !== null ? 'external' : null)),
-            'ref_table' => in_array($source, ['flinkiso', 'library'], true) ? $def['ref']['table'] : null,
-            'ref_id' => $source === 'none' ? null : $refId,
-            'label' => is_array($attrs['label'] ?? null) ? $this->cleanLabel($attrs['label']) : [],
-            'sort_order' => (int)($attrs['sort_order'] ?? 0),
-            'data' => isset($attrs['data']) && is_array($attrs['data']) && $attrs['data'] !== [] ? $attrs['data'] : null,
-        ];
+    // M9: 'library' source ko bhi ref_table ke saath store karo
+    $refSource = match ($source) {
+        'flinkiso' => 'flinkiso',
+        'library'  => 'library',
+        default    => $refId !== null ? 'external' : null,
+    };
+
+    return [
+        'type' => $type,
+        'key' => trim((string)($attrs['key'] ?? '')),
+        'parent_key' => isset($attrs['parent_key']) && $attrs['parent_key'] !== '' ? trim((string)$attrs['parent_key']) : null,
+        'ref_source' => $refSource,
+        'ref_table' => in_array($source, ['flinkiso', 'library'], true) ? $def['ref']['table'] : null,
+        'ref_id' => $source === 'none' ? null : $refId,
+        'label' => is_array($attrs['label'] ?? null) ? $this->cleanLabel($attrs['label']) : [],
+        'sort_order' => (int)($attrs['sort_order'] ?? 0),
+        'data' => isset($attrs['data']) && is_array($attrs['data']) && $attrs['data'] !== [] ? $attrs['data'] : null,
+    ];
     }
 
     private function itemErrors(array $row): array
     {
         $errors = [];
         $def = config("iso_overlay.item_types.{$row['type']}");
-
         if (!$def) {
             return ["Item type {$row['type']} is not a configured item type."];
         }
+
         if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/', $row['key'])) {
             $errors[] = 'Key must be 1 to 100 characters: letters, digits, dot, dash or underscore.';
         }
 
         $errors = array_merge($errors, $this->labelErrors($row['label'], 'Label'));
 
+        // ────────────────────────────────────────────────────────────────
+        // 1. FlinkISO Validation (Existing)
+        // ────────────────────────────────────────────────────────────────
         if (($def['ref']['source'] ?? null) === 'flinkiso') {
             if ($row['ref_id'] === null) {
                 $errors[] = "A FlinkISO {$def['ref']['table']} reference is required.";
@@ -629,16 +636,22 @@ class OverlayService
             }
         }
 
+        // ────────────────────────────────────────────────────────────────
+        // 2. M9 Library Validation (NEW - Yeh wala hissa add karna hai)
+        // ────────────────────────────────────────────────────────────────
         if (($def['ref']['source'] ?? null) === 'library') {
-            if ($row['ref_id'] === null) {
-                $errors[] = "A default content library record is required for this {$def['label']}.";
-            } elseif (!$this->libraryRecordExists($def['ref']['table'], $row['ref_id'])) {
+            if ($row['ref_id'] === null || $row['ref_id'] === '' || (int)$row['ref_id'] === 0) {
+                $errors[] = "A content library record in {$def['ref']['table']} is required.";
+            } elseif (!\Illuminate\Support\Facades\DB::table($def['ref']['table'])->where('id', $row['ref_id'])->exists()) {
                 $errors[] = "Default content library record {$row['ref_id']} in {$def['ref']['table']} does not exist.";
             }
         }
 
-        if (!empty($def['data']) && ($def['ref']['source'] ?? null) !== 'library') {
-            $validator = Validator::make(['data' => $row['data'] ?? []], $this->prefixRules($def['data']));
+        // ────────────────────────────────────────────────────────────────
+        // 3. Data Validation
+        // ────────────────────────────────────────────────────────────────
+        if (!empty($def['data'])) {
+            $validator = \Illuminate\Support\Facades\Validator::make(['data' => $row['data'] ?? []], $this->prefixRules($def['data']));
             foreach ($validator->errors()->all() as $message) {
                 $errors[] = $message;
             }

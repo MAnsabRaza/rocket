@@ -57,32 +57,34 @@
                         </div>
                     </div>
 
-                    @if($source === 'flinkiso')
-                        <div class="form-group">
-                            <label>{{ trans('iso_overlay.reference') }} ({{ $def['ref']['table'] }})</label>
-                            <select name="ref_id" class="form-control" required>
-                                <option value="">-</option>
-                                @foreach(($options ?? []) as $id => $label)
-                                    <option value="{{ $id }}" {{ old('ref_id', $item->ref_id ?? '') == $id ? 'selected' : '' }}>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    @elseif($source === 'optional')
-                        <div class="form-group">
-                            <label>{{ trans('iso_overlay.external_reference') }}</label>
-                            <input type="text" name="ref_id" class="form-control" dir="ltr" maxlength="64" value="{{ old('ref_id', $item->ref_id ?? '') }}">
-                        </div>
-                    @elseif($source === 'library')
-                        <div class="form-group">
-                            <label>{{ trans('iso_overlay.reference') }} ({{ $def['ref']['table'] }})</label>
-                            <select name="ref_id" class="form-control" required>
-                                <option value="">-</option>
-                                @foreach(($options ?? []) as $id => $label)
-                                    <option value="{{ $id }}" {{ old('ref_id', $item->ref_id ?? '') == $id ? 'selected' : '' }}>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    @endif
+                @if($source === 'flinkiso')
+<div class="form-group">
+    <label>{{ trans('iso_overlay.reference') }} ({{ $def['ref']['table'] }})</label>
+    <select name="ref_id" class="form-control" required>
+        <option value="">-</option>
+        @foreach($options as $id => $label)
+        <option value="{{ $id }}" {{ old('ref_id', $item->ref_id ?? '') == $id ? 'selected' : '' }}>{{ $label }}</option>
+        @endforeach
+    </select>
+</div>
+@elseif($source === 'library')
+{{-- M9: local content library dropdown --}}
+<div class="form-group">
+    <label>{{ trans('iso_overlay.reference') }} ({{ $def['ref']['table'] }})</label>
+    <select name="ref_id" class="form-control" required>
+        <option value="">-</option>
+        @foreach($options as $id => $label)
+        <option value="{{ $id }}" {{ old('ref_id', $item->ref_id ?? '') == $id ? 'selected' : '' }}>{{ $label }}</option>
+        @endforeach
+    </select>
+    <small class="text-muted">Select from local ISO Content Library (M9)</small>
+</div>
+@elseif($source === 'optional')
+<div class="form-group">
+    <label>{{ trans('iso_overlay.external_reference') }}</label>
+    <input type="text" name="ref_id" class="form-control" dir="ltr" maxlength="64" value="{{ old('ref_id', $item->ref_id ?? '') }}">
+</div>
+@endif
 
                     <div class="row">
                         @foreach($locales as $locale)
