@@ -1002,5 +1002,23 @@ class PermissionsTableSeeder extends Seeder
         \App\Models\Permission::updateOrCreate(['id' => 100360], ['role_id' => 2, 'section_id' => 100360, 'allow' => 1]);
         \App\Models\Permission::updateOrCreate(['id' => 100365], ['role_id' => 2, 'section_id' => 100365, 'allow' => 1]);
         \App\Models\Permission::updateOrCreate(['id' => 100366], ['role_id' => 2, 'section_id' => 100366, 'allow' => 1]);
+
+        // M9: Default ISO Content Library sections, granted to the admin role.
+        // Looks the ids up by name so it works regardless of the ids the
+        // sections seeder / earlier migrations allocated.
+        $isoContentSectionIds = \App\Models\Section::whereIn('name', [
+            'admin_iso_content',
+            'admin_iso_content_list',
+            'admin_iso_content_manage',
+        ])->pluck('id');
+
+        foreach ($isoContentSectionIds as $isoSectionId) {
+            \App\Models\Permission::updateOrCreate(
+                ['role_id' => 2, 'section_id' => $isoSectionId],
+                ['allow' => 1]
+            );
+        }
+
+        \Illuminate\Support\Facades\Cache::forget('sections');
     }
 }

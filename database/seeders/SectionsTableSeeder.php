@@ -1117,6 +1117,39 @@ Section::updateOrCreate(['id' => 3353], ['name' => 'admin_booking_package_delete
         // comments
         $this->createPanelSection(['id' => 111], ['name' => 'panel_bookings_my_comments', 'section_group_id' => 100, 'caption' => 'My Booking Comments']);
 
+        // M9: Default ISO Content Library (data-driven, no fixed ids so it is
+        // safe on databases where earlier migrations already advanced the
+        // sections auto-increment).
+        $isoContentParent = Section::firstOrCreate(
+            ['name' => 'admin_iso_content'],
+            ['caption' => 'ISO Content Library', 'type' => 'admin']
+        );
+
+        Section::firstOrCreate(
+            ['name' => 'admin_iso_content_list'],
+            ['section_group_id' => $isoContentParent->id, 'caption' => 'ISO Content Library List', 'type' => 'admin']
+        );
+
+        Section::firstOrCreate(
+            ['name' => 'admin_iso_content_manage'],
+            ['section_group_id' => $isoContentParent->id, 'caption' => 'Manage ISO Content Library', 'type' => 'admin']
+        );
+
+        // Grant the new sections to the admin role when it already exists, so
+        // running the sections seeder alone is enough for the library menu.
+        if (\App\Models\Role::whereKey(2)->exists()) {
+            foreach (['admin_iso_content', 'admin_iso_content_list', 'admin_iso_content_manage'] as $isoSectionName) {
+                $isoSection = Section::where('name', $isoSectionName)->first();
+                if ($isoSection) {
+                    \App\Models\Permission::updateOrCreate(
+                        ['role_id' => 2, 'section_id' => $isoSection->id],
+                        ['allow' => 1]
+                    );
+                }
+            }
+            Cache::forget('sections');
+        }
+
     }
 
     private function createPanelSection($arr1, $arr2)

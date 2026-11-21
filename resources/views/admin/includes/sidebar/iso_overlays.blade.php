@@ -8,3 +8,14 @@
         </a>
     </li>
 @endcan
+
+{{-- M9 Default ISO Overlay Content Pack --}}
+@can('admin_iso_content_list')
+    <li class="menu-header">{{ trans('iso_content.library') }}</li>
+    <li class="{{ request()->is(getAdminPanelUrl('/iso-content*', false)) ? 'active' : '' }}">
+        <a class="nav-link" href="{{ route('admin.iso_content.index') }}">
+            <i class="fas fa-clipboard-list"></i>
+            <span>{{ trans('iso_content.library') }}</span>
+        </a>
+    </li>
+@endcan

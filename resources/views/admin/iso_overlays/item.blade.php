@@ -3,6 +3,7 @@
 @php
     // Fields are generated from the type's rules in config/iso_overlay.php.
     $source = $def['ref']['source'] ?? 'none';
+    $isLibrary = $source === 'library';
     $fields = [];
     foreach (($def['data'] ?? []) as $field => $rule) {
         if (str_contains($field, '*') || $field === 'levels' || preg_match('/(^|\|)array(\||$)/', $rule)) {
@@ -61,7 +62,7 @@
                             <label>{{ trans('iso_overlay.reference') }} ({{ $def['ref']['table'] }})</label>
                             <select name="ref_id" class="form-control" required>
                                 <option value="">-</option>
-                                @foreach($options as $id => $label)
+                                @foreach(($options ?? []) as $id => $label)
                                     <option value="{{ $id }}" {{ old('ref_id', $item->ref_id ?? '') == $id ? 'selected' : '' }}>{{ $label }}</option>
                                 @endforeach
                             </select>
@@ -70,6 +71,16 @@
                         <div class="form-group">
                             <label>{{ trans('iso_overlay.external_reference') }}</label>
                             <input type="text" name="ref_id" class="form-control" dir="ltr" maxlength="64" value="{{ old('ref_id', $item->ref_id ?? '') }}">
+                        </div>
+                    @elseif($source === 'library')
+                        <div class="form-group">
+                            <label>{{ trans('iso_overlay.reference') }} ({{ $def['ref']['table'] }})</label>
+                            <select name="ref_id" class="form-control" required>
+                                <option value="">-</option>
+                                @foreach(($options ?? []) as $id => $label)
+                                    <option value="{{ $id }}" {{ old('ref_id', $item->ref_id ?? '') == $id ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     @endif
 
@@ -82,7 +93,7 @@
                         @endforeach
                     </div>
 
-                    @if($fields || $hasLevels)
+                    @if(!$isLibrary && ($fields || $hasLevels))
                         <h6 class="mt-2">{{ trans('iso_overlay.data') }}</h6>
                         <div class="row">
                             @foreach($fields as $field => $f)

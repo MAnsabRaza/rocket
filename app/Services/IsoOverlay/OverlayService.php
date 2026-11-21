@@ -589,14 +589,17 @@ class OverlayService
         $type = (string)($attrs['type'] ?? '');
         $def = config("iso_overlay.item_types.{$type}");
         $source = $def['ref']['source'] ?? null;
+        $isLibrary = $source === 'library';
         $refId = isset($attrs['ref_id']) && $attrs['ref_id'] !== '' ? trim((string)$attrs['ref_id']) : null;
 
         return [
             'type' => $type,
             'key' => trim((string)($attrs['key'] ?? '')),
             'parent_key' => isset($attrs['parent_key']) && $attrs['parent_key'] !== '' ? trim((string)$attrs['parent_key']) : null,
-            'ref_source' => $source === 'flinkiso' ? 'flinkiso' : ($refId !== null ? 'external' : null),
-            'ref_table' => $source === 'flinkiso' ? $def['ref']['table'] : null,
+            'ref_source' => $source === 'flinkiso'
+                ? 'flinkiso'
+                : ($isLibrary ? 'library' : ($refId !== null ? 'external' : null)),
+            'ref_table' => in_array($source, ['flinkiso', 'library'], true) ? $def['ref']['table'] : null,
             'ref_id' => $source === 'none' ? null : $refId,
             'label' => is_array($attrs['label'] ?? null) ? $this->cleanLabel($attrs['label']) : [],
             'sort_order' => (int)($attrs['sort_order'] ?? 0),
@@ -626,7 +629,15 @@ class OverlayService
             }
         }
 
-        if (!empty($def['data'])) {
+        if (($def['ref']['source'] ?? null) === 'library') {
+            if ($row['ref_id'] === null) {
+                $errors[] = "A default content library record is required for this {$def['label']}.";
+            } elseif (!$this->libraryRecordExists($def['ref']['table'], $row['ref_id'])) {
+                $errors[] = "Default content library record {$row['ref_id']} in {$def['ref']['table']} does not exist.";
+            }
+        }
+
+        if (!empty($def['data']) && ($def['ref']['source'] ?? null) !== 'library') {
             $validator = Validator::make(['data' => $row['data'] ?? []], $this->prefixRules($def['data']));
             foreach ($validator->errors()->all() as $message) {
                 $errors[] = $message;
@@ -722,6 +733,31 @@ class OverlayService
     private function flinkisoRecordExists(string $table, string $id): bool
     {
         return DB::connection(self::FLINKISO_CONNECTION)->table($table)->where('id', $id)->exists();
+    }
+
+    /**
+     * Library references point at the M9 default content tables on the host
+     * connection. Only the known library tables are allowed, and soft-deleted
+     * rows do not count as existing.
+     */
+    private function libraryRecordExists(string $table, string $id): bool
+    {
+        $allowed = [
+            'iso_content_workflows',
+            'iso_content_checklists',
+            'iso_content_kpis',
+            'iso_content_risks',
+            'iso_content_forms',
+        ];
+
+        if (!in_array($table, $allowed, true) || !ctype_digit($id)) {
+            return false;
+        }
+
+        return DB::table($table)
+            ->where('id', $id)
+            ->whereNull('deleted_at')
+            ->exists();
     }
 
     private function sortKeys($value)

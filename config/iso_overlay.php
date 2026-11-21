@@ -2,7 +2,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| M8 ISO Overlay Template Engine
+| M8/M9 ISO Overlay Template Engine Configuration
 |--------------------------------------------------------------------------
 | Everything that varies between ISO standards is data held in the overlay
 | tables. This file only declares the generic item types an overlay version
@@ -13,6 +13,7 @@
 |   flinkiso  ref_id must exist in the named table on the `flinkiso` connection
 |   optional  ref_id may be given (free reference) or left empty
 |   none      no reference; the item is defined entirely by its data
+|   library   (M9) ref_id points to the default content library tables
 */
 
 return [
@@ -23,52 +24,81 @@ return [
 
     'assignment_targets' => ['organization', 'department', 'process', 'entity'],
 
+    // M9: Extend ref sources so OverlayService::normaliseItem accepts 'library'
+    'ref_sources' => ['none', 'flinkiso', 'optional', 'library'],
+
     'item_types' => [
 
         'clause' => [
+            'label' => 'Clause',
             'ref' => ['source' => 'flinkiso', 'table' => 'clauses'],
             'data' => [],
         ],
 
         'module' => [
+            'label' => 'Module',
             'ref' => ['source' => 'optional'],
             'data' => [],
         ],
 
         'department' => [
+            'label' => 'Department',
             'ref' => ['source' => 'flinkiso', 'table' => 'departments'],
             'data' => [],
         ],
 
         'process' => [
+            'label' => 'Process',
             'ref' => ['source' => 'flinkiso', 'table' => 'processes'],
             'data' => [],
         ],
 
         'role' => [
+            'label' => 'Role',
             'ref' => ['source' => 'optional'],
             'data' => [],
         ],
 
+        // M9 Updated: Workflow now uses the default content library with structured data rules
         'workflow' => [
-            'ref' => ['source' => 'flinkiso', 'table' => 'approval_processes'],
-            'data' => [],
+            'label' => 'Workflow',
+            'ref'   => ['source' => 'library', 'table' => 'iso_content_workflows'],
+            'data'  => [
+                'description' => 'nullable|string|max:2000',
+                'states'      => 'required|array|min:2',
+                'transitions' => 'required|array|min:1',
+                'roles'       => 'nullable|array',
+                'settings'    => 'nullable|array',
+            ],
         ],
 
-        // Checklists and forms are built with the existing FlinkISO Drag and Drop
-        // builder and referenced here by their custom_tables id (decision 57).
+        // M9 Updated: Checklist now uses the default content library with structured data rules
         'checklist' => [
-            'ref' => ['source' => 'flinkiso', 'table' => 'custom_tables'],
-            'data' => [],
+            'label' => 'Audit Checklist',
+            'ref'   => ['source' => 'library', 'table' => 'iso_content_checklists'],
+            'data'  => [
+                'description' => 'nullable|string|max:2000',
+                'schema'      => 'required|array|min:1',
+                'scoring'     => 'nullable|array',
+                'version'     => 'required|integer|min:1',
+            ],
         ],
 
+        // M9 Updated: Form now uses the default content library with structured data rules
         'form' => [
-            'ref' => ['source' => 'flinkiso', 'table' => 'custom_tables'],
-            'data' => [],
+            'label' => 'Form Template',
+            'ref'   => ['source' => 'library', 'table' => 'iso_content_forms'],
+            'data'  => [
+                'description' => 'nullable|string|max:2000',
+                'schema'      => 'required|array|min:1',
+                'approval'    => 'nullable|array',
+                'version'     => 'required|integer|min:1',
+            ],
         ],
 
-        // KPIs and risks are structured, versioned overlay data (decision 58).
+        // KPIs are structured, versioned overlay data (decision 58).
         'kpi' => [
+            'label' => 'KPI',
             'ref' => ['source' => 'none'],
             'data' => [
                 'formula' => 'required|string|max:500',
@@ -85,7 +115,9 @@ return [
             ],
         ],
 
+        // Risks are structured, versioned overlay data (decision 58).
         'risk' => [
+            'label' => 'Risk',
             'ref' => ['source' => 'none'],
             'data' => [
                 'category' => 'required|string|max:120',

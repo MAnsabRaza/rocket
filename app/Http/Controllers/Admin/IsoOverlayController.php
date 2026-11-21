@@ -12,6 +12,7 @@ use App\Services\IsoOverlay\FlinkisoLookup;
 use App\Services\IsoOverlay\OverlayException;
 use App\Services\IsoOverlay\OverlayService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * M8 admin screens. Every change goes through OverlayService, which enforces the
@@ -265,7 +266,7 @@ class IsoOverlayController extends Controller
             'item' => null,
             'type' => $type,
             'def' => config("iso_overlay.item_types.{$type}"),
-            'options' => $this->optionsFor($type),
+            'options' => $this->optionsFor($type) ?? [],
             'locales' => config('iso_overlay.locales'),
         ]);
     }
@@ -293,7 +294,7 @@ class IsoOverlayController extends Controller
             'item' => $item,
             'type' => $item->type,
             'def' => config("iso_overlay.item_types.{$item->type}"),
-            'options' => $this->optionsFor($item->type),
+            'options' => $this->optionsFor($item->type) ?? [],
             'locales' => config('iso_overlay.locales'),
         ]);
     }
@@ -354,8 +355,48 @@ class IsoOverlayController extends Controller
     private function optionsFor(string $type): array
     {
         $def = config("iso_overlay.item_types.{$type}");
+        $source = $def['ref']['source'] ?? null;
 
-        return ($def['ref']['source'] ?? null) === 'flinkiso' ? $this->lookup->options($def['ref']['table']) : [];
+        if ($source === 'flinkiso') {
+            return $this->lookup->options($def['ref']['table']);
+        }
+
+        if ($source === 'library') {
+            return $this->libraryOptions($def['ref']['table']);
+        }
+
+        return [];
+    }
+
+    /**
+     * Options for a default content library table (M9). Only the known library
+     * tables are accepted, and the localized English name is preferred.
+     */
+    private function libraryOptions(string $table): array
+    {
+        $allowed = [
+            'iso_content_workflows',
+            'iso_content_checklists',
+            'iso_content_kpis',
+            'iso_content_risks',
+            'iso_content_forms',
+        ];
+
+        if (!in_array($table, $allowed, true)) {
+            return [];
+        }
+
+        return DB::table($table)
+            ->whereNull('deleted_at')
+            ->where('is_active', true)
+            ->orderBy('technical_key')
+            ->get(['id', 'name', 'technical_key'])
+            ->mapWithKeys(function ($row) {
+                $name = json_decode((string) $row->name, true) ?: [];
+                $label = $name['en'] ?? $row->technical_key;
+                return [$row->id => $label . ' (' . $row->technical_key . ')'];
+            })
+            ->all();
     }
 
     /**

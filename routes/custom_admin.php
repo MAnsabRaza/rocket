@@ -41,6 +41,7 @@ use App\Http\Controllers\Admin\Booking\BookingFeaturedController;
 use App\Http\Controllers\Admin\Booking\BookingTopCategoryController;
 use App\Http\Controllers\Admin\Booking\BookingFeatureCategoryController;
 use App\Http\Controllers\Admin\ErpCredentialController;
+use App\Http\Controllers\Admin\IsoContentLibraryController;
 use App\Http\Controllers\Admin\CalendarLogController;
 use App\Http\Controllers\Admin\Store\ProductsController;
 use App\Http\Controllers\Admin\BundleController;
@@ -360,6 +361,23 @@ Route::group(['prefix' => 'users/{id}/availability'], function () {
         ->name('admin.users.availability.deleteRow');
     Route::post('/row/add', [AvailabilitySettingsController::class, 'addRow'])
         ->name('admin.users.availability.addRow');
+});
+
+Route::group(['prefix' => 'iso-content'], function () {
+    Route::get('/',                 [IsoContentLibraryController::class, 'index'])->name('admin.iso_content.index');
+    Route::post('/reimport',        [IsoContentLibraryController::class, 'reimport'])->name('admin.iso_content.reimport');
+    Route::get('/workflows/{key}',  [IsoContentLibraryController::class, 'showWorkflow'])->name('admin.iso_content.workflows.show');
+    Route::get('/checklists/{key}', [IsoContentLibraryController::class, 'showChecklist'])->name('admin.iso_content.checklists.show');
+    Route::get('/kpis/{key}',       [IsoContentLibraryController::class, 'showKpi'])->name('admin.iso_content.kpis.show');
+    Route::get('/risks/{key}',      [IsoContentLibraryController::class, 'showRisk'])->name('admin.iso_content.risks.show');
+    Route::get('/forms/{key}',      [IsoContentLibraryController::class, 'showForm'])->name('admin.iso_content.forms.show');
+
+    $isoContentTypes = 'workflows|checklists|kpis|risks|forms';
+    Route::get('/{type}/{key}/edit',   [IsoContentLibraryController::class, 'edit'])->where('type', $isoContentTypes)->name('admin.iso_content.edit');
+    Route::post('/{type}/{key}/update',[IsoContentLibraryController::class, 'update'])->where('type', $isoContentTypes)->name('admin.iso_content.update');
+    Route::post('/{type}/{key}/clone', [IsoContentLibraryController::class, 'clone'])->where('type', $isoContentTypes)->name('admin.iso_content.clone');
+    Route::post('/{type}/{key}/version',[IsoContentLibraryController::class, 'newVersion'])->where('type', $isoContentTypes)->name('admin.iso_content.version');
+    Route::post('/{type}/{key}/toggle',[IsoContentLibraryController::class, 'toggle'])->where('type', $isoContentTypes)->name('admin.iso_content.toggle');
 });
 /**
  * ═════════════════════════════════════════════════════════════════
