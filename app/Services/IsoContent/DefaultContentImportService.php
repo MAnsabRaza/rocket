@@ -109,6 +109,20 @@ class DefaultContentImportService
     // Save Methods (Used by Seeder & Admin Edit Screens)
     // ────────────────────────────────────────────────────────────────
 
+    public function importRow(string $type, array $row, ?int $userId = null): string
+    {
+        $model = match ($type) {
+            'workflows' => $this->saveWorkflow($row, $userId),
+            'checklists' => $this->saveChecklist($row, $userId),
+            'kpis' => $this->saveKpi($row, $userId),
+            'risks' => $this->saveRisk($row, $userId),
+            'forms' => $this->saveForm($row, $userId),
+            default => throw new \InvalidArgumentException("Unsupported ISO content type: {$type}"),
+        };
+
+        return $model->technical_key;
+    }
+
     public function saveWorkflow(array $row, ?int $userId = null): IsoContentWorkflow
     {
         $this->validateRequired($row, ['technical_key', 'category', 'name', 'states', 'transitions']);
