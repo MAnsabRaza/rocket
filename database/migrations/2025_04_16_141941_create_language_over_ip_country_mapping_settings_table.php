@@ -15,9 +15,9 @@ return new class extends Migration
     {
         Schema::create('language_over_ip_country_mapping_settings', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('country_id'); // References Region table (country ID)
-            // ======== Foreign key : country_id ========
-            $table->foreign('country_id')->references('country_id')->on('regions')->onDelete('cascade');
+            // Country IDs are the primary keys of country rows in `regions`.
+            $table->unsignedInteger('country_id');
+            $table->foreign('country_id')->references('id')->on('regions')->onDelete('cascade');
             $table->string('language', 255);  // Language (e.g., English, Arabic)
             $table->timestamps();
         });

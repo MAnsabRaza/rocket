@@ -45,12 +45,16 @@ return new class extends Migration
                 ]);
             }
 
-            foreach ($ids as $sectionId) {
-                DB::table('permissions')->insert([
-                    'role_id' => self::ADMIN_ROLE_ID,
-                    'section_id' => $sectionId,
-                    'allow' => 1,
-                ]);
+            // Roles may be empty on a fresh database (e.g. test migrations without seeders).
+            // Only grant permissions when the admin role actually exists.
+            if (DB::table('roles')->where('id', self::ADMIN_ROLE_ID)->exists()) {
+                foreach ($ids as $sectionId) {
+                    DB::table('permissions')->insert([
+                        'role_id' => self::ADMIN_ROLE_ID,
+                        'section_id' => $sectionId,
+                        'allow' => 1,
+                    ]);
+                }
             }
         });
 

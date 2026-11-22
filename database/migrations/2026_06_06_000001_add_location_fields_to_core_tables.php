@@ -133,9 +133,10 @@ return new class extends Migration
 
             if ($columns['location'] && !Schema::hasColumn($table, 'location')) {
                 if ($needsSpatialIndex) {
-                    // Spatial index requires NOT NULL — add with default POINT(0 0)
+                    // Spatial index requires NOT NULL — add with default POINT(0 0).
+                    // Expression defaults must be wrapped in parentheses (MySQL 8.0.13+ / MariaDB 10.2+).
                     $blueprint->point('location')
-                        ->default(DB::raw("ST_GeomFromText('POINT(0 0)')"))
+                        ->default(DB::raw("(ST_GeomFromText('POINT(0 0)'))"))
                         ->nullable(false);
                 } else {
                     $blueprint->point('location')->nullable();
