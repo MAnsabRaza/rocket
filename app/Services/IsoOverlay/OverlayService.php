@@ -355,6 +355,7 @@ class OverlayService
     public function activate(IsoOverlay $overlay, IsoOverlayVersion $version, ?int $userId = null): IsoOverlay
     {
         $this->assertPublishedOf($overlay, $version);
+        $this->assertIntegrity($version);
 
         return DB::transaction(function () use ($overlay, $version, $userId) {
             $before = $overlay->current_version_id;
@@ -382,6 +383,7 @@ class OverlayService
     public function rollback(IsoOverlay $overlay, IsoOverlayVersion $target, ?int $userId = null): IsoOverlay
     {
         $this->assertPublishedOf($overlay, $target);
+        $this->assertIntegrity($target);
         $current = $overlay->currentVersion;
 
         if (!$current) {
@@ -542,6 +544,21 @@ class OverlayService
         }
         if ($version->status !== IsoOverlayVersion::PUBLISHED) {
             throw new OverlayException('Only a published version can be made current.');
+        }
+    }
+
+    /**
+     * A published version can only be made current while it still matches the
+     * content hash taken when it was published. This refuses activation or
+     * rollback of a version whose stored content has been altered since.
+     */
+    private function assertIntegrity(IsoOverlayVersion $version): void
+    {
+        if (!$this->verifyIntegrity($version)) {
+            throw new OverlayException('Integrity check failed.', [
+                "Version {$version->version_no} of overlay {$version->overlay->code} does not match the content hash recorded at publication. "
+                . 'The version may have been altered after publication, so it cannot be made current.',
+            ]);
         }
     }
 
