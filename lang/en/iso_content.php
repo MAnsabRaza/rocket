@@ -89,6 +89,14 @@ return [
     'reimport'             => 'Re-import Defaults',
     'reimport_confirm'     => 'This will re-import all default content. Existing entries will be updated. Continue?',
     'reimported'           => 'Default ISO content has been re-imported successfully.',
+    'reimported_preserved'  => 'Default ISO content re-imported. Customised rows were preserved (not overwritten).',
+    'dry_run'               => 'Dry Run (Conflict Report)',
+    'dry_run_report'        => 'Dry-run report (no changes written):',
+    'rollback'              => 'Rollback Last Import',
+    'rollback_confirm'      => 'Roll back the last import? Created rows will be removed and updated rows restored from version history.',
+    'rolled_back'           => 'Last import rolled back successfully.',
+    'no_import_to_rollback' => 'There is no import in this session to roll back.',
+    'last_import_report'    => 'Last import report:',
 
     // Admin actions
     'edit'                 => 'Edit',

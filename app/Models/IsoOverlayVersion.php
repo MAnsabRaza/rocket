@@ -16,7 +16,7 @@ class IsoOverlayVersion extends Model
     public const ARCHIVED = 'archived';
 
     /** Content definition used for new publications: items and overlay details. */
-    public const HASH_SCHEME = 2;
+    public const HASH_SCHEME = 3;
 
     /** The overlay details recorded in every version (meta). */
     public const DETAIL_FIELDS = ['name', 'description', 'framework_label', 'flinkiso_standard_id'];

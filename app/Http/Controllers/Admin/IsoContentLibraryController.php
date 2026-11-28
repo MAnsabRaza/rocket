@@ -47,9 +47,37 @@ class IsoContentLibraryController extends Controller
     {
         $this->authorize('admin_iso_content_manage');
 
+        $dryRun = (bool) $request->boolean('dry_run');
+        $preserve = (bool) $request->boolean('preserve');
+
         try {
-            $this->importer->importAll(auth()->id());
-            return back()->with('iso_status', trans('iso_content.reimported'));
+            $report = $this->importer->importAll(auth()->id(), $dryRun, $preserve);
+            if ($dryRun) {
+                return back()->with('iso_dry_run', $report->toArray());
+            }
+            session(['iso_last_import_report' => $report]);
+            $msg = $preserve
+                ? trans('iso_content.reimported_preserved')
+                : trans('iso_content.reimported');
+            return back()->with('iso_status', $msg)->with('iso_last_report', $report->toArray());
+        } catch (\Throwable $e) {
+            return back()->withErrors(['iso' => [$e->getMessage()]]);
+        }
+    }
+
+    public function rollback(Request $request)
+    {
+        $this->authorize('admin_iso_content_manage');
+
+        $report = session('iso_last_import_report');
+        if (!($report instanceof \App\Services\IsoContent\ImportReport)) {
+            return back()->withErrors(['iso' => [trans('iso_content.no_import_to_rollback')]]);
+        }
+
+        try {
+            $this->importer->rollbackImport($report, auth()->id());
+            session()->forget('iso_last_import_report');
+            return back()->with('iso_status', trans('iso_content.rolled_back'));
         } catch (\Throwable $e) {
             return back()->withErrors(['iso' => [$e->getMessage()]]);
         }

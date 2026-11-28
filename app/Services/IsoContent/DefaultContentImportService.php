@@ -24,18 +24,30 @@ class DefaultContentImportService
     /**
      * Master import method. Runs all modules in a single transaction.
      */
-    public function importAll(?int $userId = null): ImportReport
+    public function importAll(?int $userId = null, bool $dryRun = false, bool $preserve = false): ImportReport
     {
         $report = new ImportReport();
+        $report->dryRun = $dryRun;
+        if (!$dryRun) {
+            $report->batchId = (string) \Illuminate\Support\Str::uuid();
+        }
 
-        DB::transaction(function () use ($userId, $report) {
-            $report->workflows  = $this->importWorkflows($userId);
-            $report->checklists = $this->importChecklists($userId);
-            $report->kpis       = $this->importKpis($userId);
-            $report->risks      = $this->importRisks($userId);
-            $report->forms      = $this->importForms($userId);
-            $report->overlay    = $this->ensureDefaultOverlay($userId);
-        });
+        $runner = function () use ($userId, $report, $dryRun, $preserve) {
+            $report->workflows  = $this->importWorkflows($userId, $dryRun, $preserve);
+            $report->checklists = $this->importChecklists($userId, $dryRun, $preserve);
+            $report->kpis       = $this->importKpis($userId, $dryRun, $preserve);
+            $report->risks      = $this->importRisks($userId, $dryRun, $preserve);
+            $report->forms      = $this->importForms($userId, $dryRun, $preserve);
+            if (!$dryRun) {
+                $report->overlay = $this->ensureDefaultOverlay($userId);
+            }
+        };
+
+        if ($dryRun) {
+            $runner();
+        } else {
+            DB::transaction($runner);
+        }
 
         Log::info('Default ISO content imported', $report->toArray());
         return $report;
@@ -45,62 +57,60 @@ class DefaultContentImportService
     // Module Importers (Idempotent via updateOrCreate)
     // ────────────────────────────────────────────────────────────────
 
-    public function importWorkflows(?int $userId = null): ModuleReport
+    public function importWorkflows(?int $userId = null, bool $dryRun = false, bool $preserve = false): ModuleReport
     {
         $rows = $this->load('workflows');
         $rep  = new ModuleReport('workflows', count($rows));
 
         foreach ($rows as $row) {
-            $this->saveWorkflow($row, $userId);
-            $rep->created++;
+            $r = $this->saveWorkflow($row, $userId, $dryRun, $preserve, $rep);
+            if ($r === null) {
+                // dry run or created-tracking handled inside
+            }
         }
         return $rep;
     }
 
-    public function importChecklists(?int $userId = null): ModuleReport
+    public function importChecklists(?int $userId = null, bool $dryRun = false, bool $preserve = false): ModuleReport
     {
         $rows = $this->load('checklists');
         $rep  = new ModuleReport('checklists', count($rows));
 
         foreach ($rows as $row) {
-            $this->saveChecklist($row, $userId);
-            $rep->created++;
+            $this->saveChecklist($row, $userId, $dryRun, $preserve, $rep);
         }
         return $rep;
     }
 
-    public function importKpis(?int $userId = null): ModuleReport
+    public function importKpis(?int $userId = null, bool $dryRun = false, bool $preserve = false): ModuleReport
     {
         $rows = $this->load('kpis');
         $rep  = new ModuleReport('kpis', count($rows));
 
         foreach ($rows as $row) {
-            $this->saveKpi($row, $userId);
-            $rep->created++;
+            $this->saveKpi($row, $userId, $dryRun, $preserve, $rep);
         }
         return $rep;
     }
 
-    public function importRisks(?int $userId = null): ModuleReport
+    public function importRisks(?int $userId = null, bool $dryRun = false, bool $preserve = false): ModuleReport
     {
         $rows = $this->load('risks');
         $rep  = new ModuleReport('risks', count($rows));
 
         foreach ($rows as $row) {
-            $this->saveRisk($row, $userId);
-            $rep->created++;
+            $this->saveRisk($row, $userId, $dryRun, $preserve, $rep);
         }
         return $rep;
     }
 
-    public function importForms(?int $userId = null): ModuleReport
+    public function importForms(?int $userId = null, bool $dryRun = false, bool $preserve = false): ModuleReport
     {
         $rows = $this->load('forms');
         $rep  = new ModuleReport('forms', count($rows));
 
         foreach ($rows as $row) {
-            $this->saveForm($row, $userId);
-            $rep->created++;
+            $this->saveForm($row, $userId, $dryRun, $preserve, $rep);
         }
         return $rep;
     }
@@ -123,39 +133,29 @@ class DefaultContentImportService
         return $model->technical_key;
     }
 
-    public function saveWorkflow(array $row, ?int $userId = null): IsoContentWorkflow
+    public function saveWorkflow(array $row, ?int $userId = null, bool $dryRun = false, bool $preserve = false, ?ModuleReport $report = null): ?IsoContentWorkflow
     {
         $this->validateRequired($row, ['technical_key', 'category', 'name', 'states', 'transitions']);
         $this->validateTechnicalKey($row['technical_key']);
         $this->validateLocalizedName($row['name']);
         $this->validateStatesTransitions($row);
 
-        return IsoContentWorkflow::updateOrCreate(
-            ['technical_key' => $row['technical_key']],
-            Arr::only($row, [
-                'category', 'name', 'description', 'states', 'transitions',
-                'roles', 'settings', 'version', 'is_active',
-            ]) + ['updated_by' => $userId],
-        );
+        $keys = ['category', 'name', 'description', 'states', 'transitions', 'roles', 'settings', 'is_active'];
+        return $this->syncRecord(IsoContentWorkflow::class, $row, $keys, $userId, $dryRun, $preserve, $report);
     }
 
-    public function saveChecklist(array $row, ?int $userId = null): IsoContentChecklist
+    public function saveChecklist(array $row, ?int $userId = null, bool $dryRun = false, bool $preserve = false, ?ModuleReport $report = null): ?IsoContentChecklist
     {
         $this->validateRequired($row, ['technical_key', 'name', 'schema']);
         $this->validateTechnicalKey($row['technical_key']);
         $this->validateLocalizedName($row['name']);
         $this->validateChecklistSchema($row['schema']);
 
-        return IsoContentChecklist::updateOrCreate(
-            ['technical_key' => $row['technical_key']],
-            Arr::only($row, [
-                'standard_ref', 'name', 'description', 'schema', 'scoring',
-                'version', 'is_active',
-            ]) + ['updated_by' => $userId],
-        );
+        $keys = ['standard_ref', 'name', 'description', 'schema', 'scoring', 'is_active'];
+        return $this->syncRecord(IsoContentChecklist::class, $row, $keys, $userId, $dryRun, $preserve, $report);
     }
 
-    public function saveKpi(array $row, ?int $userId = null): IsoContentKpi
+    public function saveKpi(array $row, ?int $userId = null, bool $dryRun = false, bool $preserve = false, ?ModuleReport $report = null): ?IsoContentKpi
     {
         $this->validateRequired($row, ['technical_key', 'category', 'name', 'formula', 'unit', 'thresholds']);
         $this->validateTechnicalKey($row['technical_key']);
@@ -163,48 +163,177 @@ class DefaultContentImportService
         $this->validateFormula($row['formula']);
         $this->validateThresholds($row['thresholds']);
 
-        return IsoContentKpi::updateOrCreate(
-            ['technical_key' => $row['technical_key']],
-            Arr::only($row, [
-                'category', 'name', 'description', 'clause_ref', 'formula', 'unit',
-                'frequency', 'calculation', 'thresholds', 'roles', 'source', 
-                'version', 'is_active',
-            ]) + ['updated_by' => $userId],
-        );
+        $keys = ['category', 'name', 'description', 'clause_ref', 'formula', 'unit', 'frequency', 'calculation', 'thresholds', 'roles', 'source', 'is_active'];
+        return $this->syncRecord(IsoContentKpi::class, $row, $keys, $userId, $dryRun, $preserve, $report);
     }
 
-    public function saveRisk(array $row, ?int $userId = null): IsoContentRisk
+    public function saveRisk(array $row, ?int $userId = null, bool $dryRun = false, bool $preserve = false, ?ModuleReport $report = null): ?IsoContentRisk
     {
         $this->validateRequired($row, ['technical_key', 'category', 'name']);
         $this->validateTechnicalKey($row['technical_key']);
         $this->validateLocalizedName($row['name']);
         $this->validateRiskScales($row);
 
-        return IsoContentRisk::updateOrCreate(
-            ['technical_key' => $row['technical_key']],
-            Arr::only($row, [
-                'category', 'name', 'description', 'causes', 'consequences',
-                'default_probability', 'default_impact', 'probability_scale',
-                'impact_scale', 'scoring_rule', 'levels', 'residual',
-                'mitigations', 'controls', 'version', 'is_active',
-            ]) + ['updated_by' => $userId],
-        );
+        $keys = ['category', 'name', 'description', 'causes', 'consequences', 'default_probability', 'default_impact', 'probability_scale', 'impact_scale', 'scoring_rule', 'levels', 'residual', 'mitigations', 'controls', 'is_active'];
+        return $this->syncRecord(IsoContentRisk::class, $row, $keys, $userId, $dryRun, $preserve, $report);
     }
 
-    public function saveForm(array $row, ?int $userId = null): IsoContentForm
+    public function saveForm(array $row, ?int $userId = null, bool $dryRun = false, bool $preserve = false, ?ModuleReport $report = null): ?IsoContentForm
     {
         $this->validateRequired($row, ['technical_key', 'category', 'name', 'schema']);
         $this->validateTechnicalKey($row['technical_key']);
         $this->validateLocalizedName($row['name']);
         $this->validateFormSchema($row['schema']);
 
-        return IsoContentForm::updateOrCreate(
-            ['technical_key' => $row['technical_key']],
-            Arr::only($row, [
-                'category', 'name', 'description', 'schema', 'approval',
-                'version', 'is_active',
-            ]) + ['updated_by' => $userId],
-        );
+        $keys = ['category', 'name', 'description', 'schema', 'approval', 'is_active'];
+        return $this->syncRecord(IsoContentForm::class, $row, $keys, $userId, $dryRun, $preserve, $report);
+    }
+
+    /**
+     * Shared, version-aware sync logic for all five library tables.
+     *
+     * - New rows are created.
+     * - Identical rows are skipped (no write).
+     * - Changed rows: snapshot the current row into version_history, bump version,
+     *   then overwrite (unless $preserve is true, in which case the row is kept
+     *   and reported as a conflict).
+     * - In dry-run mode nothing is written; conflicts are still reported.
+     */
+    private function syncRecord(string $class, array $row, array $keys, ?int $userId, bool $dryRun, bool $preserve, ?ModuleReport $report): ?\Illuminate\Database\Eloquent\Model
+    {
+        $technicalKey = $row['technical_key'];
+        $existing = $class::where('technical_key', $technicalKey)->first();
+
+        $incoming = Arr::only($row, $keys) + ['updated_by' => $userId];
+
+        if (!$existing) {
+            if ($dryRun) {
+                if ($report) { $report->created++; $report->createdKeys[] = $technicalKey; }
+                return null;
+            }
+            $record = $class::create(array_merge(['technical_key' => $technicalKey, 'version' => (int) ($row['version'] ?? 1)], $incoming));
+            if ($report) { $report->created++; $report->createdKeys[] = $technicalKey; }
+            return $record;
+        }
+
+        // Compare current vs incoming (excluding version, which we manage).
+        $current = Arr::only($existing->toArray(), array_keys($incoming));
+        $differs = $this->rowsDiffer($current, $incoming);
+
+        if (!$differs) {
+            if ($report) { $report->skipped++; }
+            return $existing;
+        }
+
+        if ($report) { $report->conflicts[] = $technicalKey; }
+
+        if ($dryRun) {
+            return $existing;
+        }
+
+        if ($preserve) {
+            if ($report) { $report->skipped++; }
+            return $existing;
+        }
+
+        // Snapshot current row into version_history before overwriting.
+        $history = $existing->version_history ?? [];
+        $history[] = [
+            'version'  => $existing->version,
+            'saved_at' => now()->toIso8601String(),
+            'saved_by' => $userId,
+            'data'     => Arr::except($existing->toArray(), ['version_history', 'created_at', 'updated_at', 'deleted_at']),
+        ];
+        $existing->forceFill(['version_history' => $history])->saveQuietly();
+
+        $existing->increment('version');
+        $existing->refresh();
+
+        $existing->fill($incoming)->save();
+        if ($report) { $report->updated++; }
+
+        return $existing->fresh();
+    }
+
+    /**
+     * Roll back a previous real import using its report.
+     *
+     * - Rows that were created are soft-deleted.
+     * - Rows that were updated are restored from their last version_history snapshot
+     *   and their version is decremented.
+     */
+    public function rollbackImport(ImportReport $report, ?int $userId = null): void
+    {
+        $pairs = [
+            'workflows'  => IsoContentWorkflow::class,
+            'checklists' => IsoContentChecklist::class,
+            'kpis'       => IsoContentKpi::class,
+            'risks'      => IsoContentRisk::class,
+            'forms'      => IsoContentForm::class,
+        ];
+
+        DB::transaction(function () use ($report, $pairs, $userId) {
+            foreach ($pairs as $prop => $class) {
+                $mr = $report->{$prop};
+                if (!$mr instanceof ModuleReport) continue;
+
+                foreach ($mr->createdKeys as $key) {
+                    $row = $class::where('technical_key', $key)->first();
+                    if ($row) $row->delete();
+                }
+
+                foreach ($mr->conflicts as $key) {
+                    $row = $class::where('technical_key', $key)->first();
+                    if (!$row) continue;
+                    $history = $row->version_history ?? [];
+                    if (empty($history)) continue;
+                    $last = array_pop($history);
+                    $data = $last['data'] ?? null;
+                    if (!is_array($data)) continue;
+                    $data = Arr::except($data, ['id', 'technical_key', 'version', 'version_history', 'created_at', 'updated_at', 'deleted_at']);
+                    $row->forceFill(array_merge($data, ['version_history' => $history]))->saveQuietly();
+                    if ($row->version > 1) $row->decrement('version');
+                }
+            }
+        });
+
+        Log::info('Default ISO content import rolled back', ['batch_id' => $report->batchId]);
+    }
+
+    private function rowsDiffer(array $a, array $b): bool
+    {
+        foreach (array_keys($b) as $k) {
+            $va = array_key_exists($k, $a) ? $a[$k] : null;
+            $vb = $b[$k];
+            if (is_array($va) || is_array($vb)) {
+                if ($this->canonicalJson($va) !== $this->canonicalJson($vb)) return true;
+            } else {
+                if ($va !== $vb) return true;
+            }
+        }
+        return false;
+    }
+
+    private function canonicalJson($value): string
+    {
+        if (is_array($value)) {
+            $isList = array_is_list($value);
+            $out = [];
+            foreach ($value as $k => $v) {
+                $out[$k] = $this->canonicalJson($v);
+            }
+            if (!$isList) {
+                ksort($out);
+            }
+            return json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+        if (is_bool($value) || $value === null) {
+            return json_encode($value);
+        }
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     // ────────────────────────────────────────────────────────────────

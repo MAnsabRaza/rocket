@@ -366,6 +366,7 @@ Route::group(['prefix' => 'users/{id}/availability'], function () {
 Route::group(['prefix' => 'iso-content'], function () {
     Route::get('/',                 [IsoContentLibraryController::class, 'index'])->name('admin.iso_content.index');
     Route::post('/reimport',        [IsoContentLibraryController::class, 'reimport'])->name('admin.iso_content.reimport');
+    Route::post('/rollback',        [IsoContentLibraryController::class, 'rollback'])->name('admin.iso_content.rollback');
     Route::get('/workflows/{key}',  [IsoContentLibraryController::class, 'showWorkflow'])->name('admin.iso_content.workflows.show');
     Route::get('/checklists/{key}', [IsoContentLibraryController::class, 'showChecklist'])->name('admin.iso_content.checklists.show');
     Route::get('/kpis/{key}',       [IsoContentLibraryController::class, 'showKpi'])->name('admin.iso_content.kpis.show');

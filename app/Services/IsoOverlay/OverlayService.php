@@ -261,16 +261,17 @@ class OverlayService
 
     public function publish(IsoOverlayVersion $version, ?int $userId = null): IsoOverlayVersion
     {
-        $this->assertDraft($version);
-        $errors = $this->validateVersion($version);
-
-        if ($errors) {
-            throw new OverlayException('Version not published.', $errors);
-        }
-
         return DB::transaction(function () use ($version, $userId) {
-            $hash = $this->contentHash($version, IsoOverlayVersion::HASH_SCHEME);
-            $version->fill([
+            $v = IsoOverlayVersion::where('id', $version->id)->lockForUpdate()->firstOrFail();
+            $this->assertDraft($v);
+
+            $errors = $this->validateVersion($v);
+            if ($errors) {
+                throw new OverlayException('Version not published.', $errors);
+            }
+
+            $hash = $this->contentHash($v, IsoOverlayVersion::HASH_SCHEME);
+            $v->fill([
                 'status' => IsoOverlayVersion::PUBLISHED,
                 'content_hash' => $hash,
                 'hash_scheme' => IsoOverlayVersion::HASH_SCHEME,
@@ -278,10 +279,10 @@ class OverlayService
                 'published_by' => $userId,
             ])->save();
 
-            $this->syncOverlayDetails($version->overlay);
-            $this->audit('published', $version->overlay, $version, $userId, null, $hash, ['hash_scheme' => IsoOverlayVersion::HASH_SCHEME]);
+            $this->syncOverlayDetails($v->overlay);
+            $this->audit('published', $v->overlay, $v, $userId, null, $hash, ['hash_scheme' => IsoOverlayVersion::HASH_SCHEME]);
 
-            return $version->fresh();
+            return $v->fresh();
         });
     }
 
@@ -354,16 +355,19 @@ class OverlayService
 
     public function activate(IsoOverlay $overlay, IsoOverlayVersion $version, ?int $userId = null): IsoOverlay
     {
-        $this->assertPublishedOf($overlay, $version);
-        $this->assertIntegrity($version);
-
         return DB::transaction(function () use ($overlay, $version, $userId) {
-            $before = $overlay->current_version_id;
-            $overlay->fill(['current_version_id' => $version->id, 'is_active' => true])->save();
-            $this->syncOverlayDetails($overlay);
-            $this->audit('activated', $overlay, $version, $userId, null, $version->content_hash, ['previous_version_id' => $before]);
+            $o = IsoOverlay::where('id', $overlay->id)->lockForUpdate()->firstOrFail();
+            $v = IsoOverlayVersion::where('id', $version->id)->lockForUpdate()->firstOrFail();
 
-            return $overlay->fresh();
+            $this->assertPublishedOf($o, $v);
+            $this->assertIntegrity($v);
+
+            $before = $o->current_version_id;
+            $o->fill(['current_version_id' => $v->id, 'is_active' => true])->save();
+            $this->syncOverlayDetails($o);
+            $this->audit('activated', $o, $v, $userId, null, $v->content_hash, ['previous_version_id' => $before]);
+
+            return $o->fresh();
         });
     }
 
@@ -382,41 +386,50 @@ class OverlayService
      */
     public function rollback(IsoOverlay $overlay, IsoOverlayVersion $target, ?int $userId = null): IsoOverlay
     {
-        $this->assertPublishedOf($overlay, $target);
-        $this->assertIntegrity($target);
-        $current = $overlay->currentVersion;
+        return DB::transaction(function () use ($overlay, $target, $userId) {
+            $o = IsoOverlay::where('id', $overlay->id)->lockForUpdate()->firstOrFail();
+            $t = IsoOverlayVersion::where('id', $target->id)->lockForUpdate()->firstOrFail();
 
-        if (!$current) {
-            throw new OverlayException('The overlay has no current version to roll back from.');
-        }
-        if ((int)$target->version_no >= (int)$current->version_no) {
-            throw new OverlayException('Rollback targets an earlier version than the current one.');
-        }
+            $this->assertPublishedOf($o, $t);
+            $this->assertIntegrity($t);
 
-        return DB::transaction(function () use ($overlay, $target, $current, $userId) {
-            $overlay->fill(['current_version_id' => $target->id])->save();
-            $this->syncOverlayDetails($overlay);
-            $this->audit('rolled_back', $overlay, $target, $userId, $current->content_hash, $target->content_hash,
-                ['from_version_no' => $current->version_no, 'to_version_no' => $target->version_no]);
+            $current = $o->current_version_id
+                ? IsoOverlayVersion::where('id', $o->current_version_id)->lockForUpdate()->first()
+                : null;
 
-            return $overlay->fresh();
+            if (!$current) {
+                throw new OverlayException('The overlay has no current version to roll back from.');
+            }
+            if ((int)$t->version_no >= (int)$current->version_no) {
+                throw new OverlayException('Rollback targets an earlier version than the current one.');
+            }
+
+            $o->fill(['current_version_id' => $t->id])->save();
+            $this->syncOverlayDetails($o);
+            $this->audit('rolled_back', $o, $t, $userId, $current->content_hash, $t->content_hash,
+                ['from_version_no' => $current->version_no, 'to_version_no' => $t->version_no]);
+
+            return $o->fresh();
         });
     }
 
     public function archive(IsoOverlayVersion $version, ?int $userId = null): IsoOverlayVersion
     {
-        if ($version->status !== IsoOverlayVersion::PUBLISHED) {
-            throw new OverlayException('Only a published version can be archived.');
-        }
-        if ((int)$version->overlay->current_version_id === (int)$version->id) {
-            throw new OverlayException('The current version cannot be archived. Activate or roll back to another version first.');
-        }
-
         return DB::transaction(function () use ($version, $userId) {
-            $version->fill(['status' => IsoOverlayVersion::ARCHIVED, 'archived_at' => now(), 'archived_by' => $userId])->save();
-            $this->audit('archived', $version->overlay, $version, $userId, $version->content_hash, $version->content_hash);
+            $v = IsoOverlayVersion::where('id', $version->id)->lockForUpdate()->firstOrFail();
+            $overlay = IsoOverlay::where('id', $v->overlay_id)->lockForUpdate()->firstOrFail();
 
-            return $version->fresh();
+            if ($v->status !== IsoOverlayVersion::PUBLISHED) {
+                throw new OverlayException('Only a published version can be archived.');
+            }
+            if ((int)$overlay->current_version_id === (int)$v->id) {
+                throw new OverlayException('The current version cannot be archived. Activate or roll back to another version first.');
+            }
+
+            $v->fill(['status' => IsoOverlayVersion::ARCHIVED, 'archived_at' => now(), 'archived_by' => $userId])->save();
+            $this->audit('archived', $overlay, $v, $userId, $v->content_hash, $v->content_hash);
+
+            return $v->fresh();
         });
     }
 
@@ -484,6 +497,10 @@ class OverlayService
 
         $items = IsoOverlayItem::where('version_id', $version->id)->orderBy('type')->orderBy('key')->get()
             ->map(function (IsoOverlayItem $item) {
+                $refContentHash = null;
+                if ($item->ref_source === 'library' && $item->ref_table && $item->ref_id) {
+                    $refContentHash = $this->libraryContentHash($item->ref_table, (string)$item->ref_id);
+                }
                 return $this->sortKeys([
                     'type' => $item->type,
                     'key' => $item->key,
@@ -491,6 +508,7 @@ class OverlayService
                     'ref_source' => $item->ref_source,
                     'ref_table' => $item->ref_table,
                     'ref_id' => $item->ref_id,
+                    'ref_content_hash' => $refContentHash,
                     'label' => $item->label,
                     'sort_order' => (int)$item->sort_order,
                     'data' => $item->data,
@@ -659,8 +677,8 @@ class OverlayService
         if (($def['ref']['source'] ?? null) === 'library') {
             if ($row['ref_id'] === null || $row['ref_id'] === '' || (int)$row['ref_id'] === 0) {
                 $errors[] = "A content library record in {$def['ref']['table']} is required.";
-            } elseif (!\Illuminate\Support\Facades\DB::table($def['ref']['table'])->where('id', $row['ref_id'])->exists()) {
-                $errors[] = "Default content library record {$row['ref_id']} in {$def['ref']['table']} does not exist.";
+            } elseif (!$this->libraryRecordExists($def['ref']['table'], (string)$row['ref_id'])) {
+                $errors[] = "Default content library record {$row['ref_id']} in {$def['ref']['table']} does not exist or is inactive.";
             }
         }
 
@@ -787,8 +805,40 @@ class OverlayService
         return DB::table($table)
             ->where('id', $id)
             ->whereNull('deleted_at')
+            ->where('is_active', true)
             ->exists();
     }
+
+    /**
+     * Canonical hash of a referenced library row's content (used by the overlay
+     * integrity snapshot so a published overlay detects later edits to the
+     * library record it points at).
+     */
+    private function libraryContentHash(string $table, string $id): ?string
+    {
+        $allowed = [
+            'iso_content_workflows',
+            'iso_content_checklists',
+            'iso_content_kpis',
+            'iso_content_risks',
+            'iso_content_forms',
+        ];
+        if (!in_array($table, $allowed, true) || !ctype_digit($id)) {
+            return null;
+        }
+
+        $row = DB::table($table)->where('id', $id)->whereNull('deleted_at')->where('is_active', true)->first();
+        if (!$row) {
+            return null;
+        }
+
+        $data = (array) $row;
+        unset($data['created_at'], $data['updated_at'], $data['deleted_at']);
+        ksort($data);
+
+        return hash('sha256', json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
 
     private function sortKeys($value)
     {

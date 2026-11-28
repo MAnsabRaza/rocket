@@ -12,12 +12,50 @@
                     <i class="fas fa-sync-alt"></i> {{ trans('iso_content.reimport') }}
                 </button>
             </form>
+            <form method="post" action="{{ route('admin.iso_content.reimport') }}" class="d-inline">
+                @csrf
+                <input type="hidden" name="dry_run" value="1">
+                <button class="btn btn-icon icon-left btn-info">
+                    <i class="fas fa-search"></i> {{ trans('iso_content.dry_run') }}
+                </button>
+            </form>
+            <form method="post" action="{{ route('admin.iso_content.rollback') }}" class="d-inline">
+                @csrf
+                <button class="btn btn-icon icon-left btn-danger" onclick="return confirm('{{ trans('iso_content.rollback_confirm') }}')">
+                    <i class="fas fa-undo"></i> {{ trans('iso_content.rollback') }}
+                </button>
+            </form>
         </div>
         @endcan
     </div>
 
     <div class="section-body">
         @include('admin.iso_content._messages')
+
+@if(session('iso_dry_run'))
+    <div class="alert alert-info">
+        <strong>{{ trans('iso_content.dry_run_report') }}</strong>
+        @foreach(session('iso_dry_run') as $mod => $data)
+            @if(is_array($data) && isset($data['conflicts']))
+                <div><strong>{{ $mod }}</strong>: created {{ $data['created'] ?? 0 }}, updated {{ $data['updated'] ?? 0 }}, skipped {{ $data['skipped'] ?? 0 }}, conflicts {{ count($data['conflicts'] ?? []) }}</div>
+                @if(!empty($data['conflicts']))
+                    <ul>@foreach($data['conflicts'] as $c)<li>{{ $c }}</li>@endforeach</ul>
+                @endif
+            @endif
+        @endforeach
+    </div>
+@endif
+
+@if(session('iso_last_report'))
+    <div class="alert alert-success">
+        <strong>{{ trans('iso_content.last_import_report') }}</strong>
+        @foreach(session('iso_last_report') as $mod => $data)
+            @if(is_array($data) && isset($data['conflicts']))
+                <div><strong>{{ $mod }}</strong>: created {{ $data['created'] ?? 0 }}, updated {{ $data['updated'] ?? 0 }}, skipped {{ $data['skipped'] ?? 0 }}, conflicts {{ count($data['conflicts'] ?? []) }}</div>
+            @endif
+        @endforeach
+    </div>
+@endif
 
         {{-- Summary Cards --}}
         <div class="row">
