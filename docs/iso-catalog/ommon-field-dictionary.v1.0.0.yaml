@@ -1,4 +1,8 @@
 dictionary_version: 1.0.0
+status: superseded
+superseded_by: ../M11_Field_Dictionary.csv
+authority: ../M11_ISO_Catalog_Matrix_Revised.txt
+warning: "Historical partial draft; do not use for implementation. The current M11 dictionary is authoritative."
 policy: "Identical business meaning = ONE shared field. Never duplicated per standard."
 fields:
   - technical_key: common_due_date

@@ -1,4 +1,8 @@
 dictionary_version: 1.0.0
+status: superseded
+superseded_by: ../M11_Field_Dictionary.csv
+authority: ../M11_ISO_Catalog_Matrix_Revised.txt
+warning: "This historical partial draft lists only 3 common fields and 2015-era editions. Use the 15 common fields in the current M11 dictionary (CSV rows 1-15) and Appendix B."
 policy: "Identical business meaning = ONE shared field. Never duplicated per standard."
 fields:
   - technical_key: common_due_date

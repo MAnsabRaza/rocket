@@ -1,54 +1,11 @@
-matrix:
-  version: 1.0.0
-  status: draft
-  freeze_date: null
-  entries:
-    - matrix_id: QMS-2015-7.5-DOCCTRL
-      iso_standard: ISO 9001
-      standard_version: "2015"
-      clause_ref: "7.5"
-      module: documented_information
-      section: "7.5.3 Control of documented information"
-      field_group: document_control
-      field_count: 18
-      technical_key_prefix: qms_doc_
-      lookup_sets: [LKP_DOC_STATUS, LKP_DOC_TYPE, LKP_APPROVAL_STATE]
-      validation_rule_ids: [VR-001, VR-014]
-      dependency_rule_ids: []
-      report_ids: [RPT-COMPLIANCE-01]
-      pdf_template_ids: [PDF-DOC-REGISTER]
-      import_export_keys: [doc_register_csv]
-      locales: [en, ar]
-      rtl_required: true
-      roles_edit: [document_controller, quality_manager]
-      roles_view: [auditor, admin, process_owner]
-      legacy_source: null
-      migration_needed: false
-      catalog_version: 1.0.0
-      status: draft
-      owner_approver: "TO BE SUPPLIED BY CLIENT"
-
-    - matrix_id: EMS-2015-6.1-RISK
-      iso_standard: ISO 14001
-      standard_version: "2015"
-      clause_ref: "6.1"
-      module: planning
-      section: "6.1.2 Environmental aspects"
-      field_group: environmental_aspects
-      field_count: 15
-      technical_key_prefix: env_aspect_
-      lookup_sets: [LKP_ASPECT_TYPE, LKP_IMPACT_SEVERITY]
-      validation_rule_ids: [VR-001, VR-005]
-      dependency_rule_ids: []
-      report_ids: [RPT-RISK-01]
-      pdf_template_ids: [PDF-ASPECT-REGISTER]
-      import_export_keys: [aspect_register_json]
-      locales: [en, ar]
-      rtl_required: true
-      roles_edit: [process_owner]
-      roles_view: [auditor, admin]
-      legacy_source: null
-      migration_needed: false
-      catalog_version: 1.0.0
-      status: draft
-      owner_approver: "TO BE SUPPLIED BY CLIENT"
+# M11 v1.0.0 draft matrix retained for history only.
+# It contained a partial 2015-era proposal and is superseded by the complete
+# 17-mapping, 2026-primary M11 specification below.
+status: superseded
+superseded_by: ../M11_ISO_Catalog_Matrix_Revised.txt
+replacement_version: 1.1.1
+scope: "ISO 9001:2026 and ISO 14001:2026; 17 complete initial clause-to-module mappings"
+compatibility_editions:
+  - ISO 9001:2015
+  - ISO 14001:2015
+warning: "Do not seed or implement catalog data from this historical draft."
